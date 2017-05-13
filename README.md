@@ -1,2 +1,2 @@
 # KinectVR
-OpenVR input using Kinect v2
+VR input using Kinect v2
