@@ -454,20 +454,19 @@ public class KinectCamera : MonoBehaviour
 
     private void UpdateBodyObject(Kinect.Body body, GameObject bodyObject)
     {
-        for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
+        foreach (Kinect.JointType jt in essentialJoints)
         {
-            try
-            {
-                Transform jointObj = bodyTransforms[jt];
-                jointObj.localPosition = bodyPositions[jt];
-            }
-            catch
-            {
-            }
+            Transform jointObj = bodyTransforms[jt];
+            bodyPositions[jt] = bodyFilters[jt].predict();
+            jointObj.localPosition = bodyPositions[jt];
         }
-
-
+        foreach (Kinect.JointType jt in unessentialJoints)
+        {
+            Transform jointObj = bodyTransforms[jt];
+            jointObj.localPosition = bodyPositions[jt];
+        }
     }
+
     private void RefreshBodyObject(Kinect.Body body)
     {
 
@@ -486,7 +485,6 @@ public class KinectCamera : MonoBehaviour
             Vector3 pos = GetVector3FromJoint(sourceJoint);
             bodyFilters[jt].record(pos);
 
-            bodyPositions[jt] = bodyFilters[jt].predict();
         }
         foreach (Kinect.JointType jt in unessentialJoints)
         {
