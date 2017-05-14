@@ -17,7 +17,7 @@ public class DepthSourceView : MonoBehaviour
     public GameObject ColorSourceManager;
     public GameObject DepthSourceManager;
     public GameObject MultiSourceManager;
-    public BodySourceView bodyView;
+    public KinectCamera bodyView;
 
     private KinectSensor _Sensor;
     private CoordinateMapper _Mapper;

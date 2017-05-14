@@ -6,7 +6,7 @@ public class Hand : MonoBehaviour
 {
 
     public enum HandStatus { Open, Close };
-    HandStatus hand = HandStatus.Open;
+    public HandStatus status = HandStatus.Open;
     public bool holding = false;
 
     private bool change = false;
@@ -18,7 +18,7 @@ public class Hand : MonoBehaviour
 
     public Collider[] things;
     public GameObject grab_position;
-    public BodySourceView kinect_view;
+    public KinectCamera kinect_view;
 
     private HashSet<Collider> onBounds;
 
@@ -45,40 +45,13 @@ public class Hand : MonoBehaviour
     {
         velocity = (transform.position - lastPosition) / Time.deltaTime;
         lastPosition = transform.position;
-        // MOUSE TESTING
-
-        if ((right_hand && kinect_view.rightHandClosed) || (!right_hand && kinect_view.leftHandClosed))
-        {
-            closeHand();
-        }
-        else
-        {
-            openHand();
-        }
-
-        if (change)
-        {
-            if (hand == HandStatus.Open)
-            {
-                releaseObject();
-                //reset the tracking context
-                kinect_view.setTrackingContext(BodySourceView.TrackingContext.Medium, right_hand);
-            }
-            else
-            {
-                grabObject();
-            }
-            change = false;
-        }
-
-
     }
 
     public void openHand()
     {
-        if (hand == HandStatus.Close)
+        if (status == HandStatus.Close)
         {
-            hand = HandStatus.Open;
+            status = HandStatus.Open;
             change = true;
         }
 
@@ -86,9 +59,9 @@ public class Hand : MonoBehaviour
 
     public void closeHand()
     {
-        if (hand == HandStatus.Open)
+        if (status == HandStatus.Open)
         {
-            hand = HandStatus.Close;
+            status = HandStatus.Close;
             change = true;
         }
 

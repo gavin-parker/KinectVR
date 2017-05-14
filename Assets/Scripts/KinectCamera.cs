@@ -10,26 +10,14 @@ using System;
 using System.Linq;
 
 
-public class BodySourceView : MonoBehaviour
+public class KinectCamera : MonoBehaviour
 {
-    public Material BoneMaterial;
     public GameObject BodySourceManager;
-    public GameObject startBody;
-    //headCamera is the parent of the oculus camera
-    public GameObject headCamera;
-    //head model is the face model, moves independently of camera
-    public GameObject head_model;
-    //eyes is the actual position of the oculus
-    public GameObject eyes;
-    public GameObject right_hand;
-    public GameObject left_hand;
-    public GameObject player_body;
-    public GameObject kinectLocation;
-    public GameObject left_foot;
-    public GameObject right_foot;
-    public GameObject colorScreen;
-    public GameObject eyeMarker;
-    public GameObject kinectView;
+    public Hand right_hand;
+    public Hand left_hand;
+    public GameObject torso;
+    public GameObject head;
+    private GameObject bodyRoot;
     public Text countdown;
     public int tracking_frames = 8;
     public bool rightHandClosed = false;
@@ -44,7 +32,6 @@ public class BodySourceView : MonoBehaviour
     private int l_hand_open_frames = 0;
     private ulong player_id = 99;
     bool runningThread = true;
-    public GameObject Temple;
     private bool started = true;
     private TrackingContext leftHandContext = TrackingContext.Medium;
     private TrackingContext rightHandContext = TrackingContext.Medium;
@@ -99,10 +86,9 @@ public class BodySourceView : MonoBehaviour
 
     private void Start()
     {
-        Temple = GameObject.FindGameObjectWithTag("Temple");
         List<Kinect.JointType> importantJoints = essentialJoints.ToList<Kinect.JointType>();
         List<Kinect.JointType> unimportantJoints = new List<Kinect.JointType>();
-
+        bodyRoot = new GameObject();
         for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
         {
             if (!importantJoints.Contains(jt))
@@ -117,18 +103,6 @@ public class BodySourceView : MonoBehaviour
         if (BodySourceManager == null)
         {
             return;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Return)) {
-            VRSettings.showDeviceView = !VRSettings.showDeviceView;
-            if (!VRSettings.showDeviceView)
-            {
-                kinectView.SetActive(true);
-            }
-            else
-            {
-                kinectView.SetActive(false);
-            }
         }
 
         _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
@@ -190,15 +164,13 @@ public class BodySourceView : MonoBehaviour
                         float headHeight = headObject.y;
                         float idealHeight = 20;
                         float feetOffset = headHeight - idealHeight;
-                        kinectLocation.transform.position += new Vector3(0, -feetOffset, 0);
                         player_id = body.TrackingId;
                         started = false;
                         trackedBody = body;
                         trackedBodyObject = _Bodies[body.TrackingId];
-                        bodyThread = new Thread(new ThreadStart(testThread));
+                        bodyThread = new Thread(new ThreadStart(refreshBody));
                         bodyThread.Start();
 
-                        //StartCoroutine(RefreshBodyObject(body, _Bodies[body.TrackingId]));
                     }
                 }
                 if (body.TrackingId == player_id)
@@ -246,7 +218,7 @@ public class BodySourceView : MonoBehaviour
         }
     }
 
-    private void testThread()
+    private void refreshBody()
     {
         while (runningThread)
         {
@@ -270,11 +242,10 @@ public class BodySourceView : MonoBehaviour
     private void adjustBodyParts(Kinect.Body body, GameObject bodyObject)
     {
 
-        headCamera.transform.position = Vector3.Slerp(headCamera.transform.position, player_objects[Kinect.JointType.Head].transform.position, Time.deltaTime * 10.0f);
+        head.transform.position = Vector3.Slerp(head.transform.position, player_objects[Kinect.JointType.Head].transform.position, Time.deltaTime * 10.0f);
 
         if (!started)
         {
-            Temple.transform.position = player_objects[Kinect.JointType.Head].transform.position + Vector3.left * 40 + Vector3.down * 20;
             started = true;
         }
         rightHandVelocity = (player_objects[Kinect.JointType.HandRight].transform.position - right_hand.transform.position).magnitude / Time.deltaTime;
@@ -282,23 +253,13 @@ public class BodySourceView : MonoBehaviour
         right_hand.transform.position = Vector3.Slerp(right_hand.transform.position, player_objects[Kinect.JointType.HandRight].transform.position, Time.deltaTime * 10.0f);
         left_hand.transform.position = Vector3.Slerp(left_hand.transform.position, player_objects[Kinect.JointType.HandLeft].transform.position, Time.deltaTime * 10.0f);
 
-        //right_foot.transform.rotation = Quaternion.Slerp(right_foot.transform.rotation, Quaternion.LookRotation(right_foot_direction), Time.deltaTime * 10.0f);
-        //left_foot.transform.rotation = Quaternion.Slerp(left_foot.transform.rotation, Quaternion.LookRotation(left_foot_direction), Time.deltaTime * 10.0f);
-        right_foot.transform.position = Vector3.Slerp(right_foot.transform.position, player_objects[Kinect.JointType.FootRight].transform.position, Time.deltaTime * 10.0f);
-        left_foot.transform.position = Vector3.Slerp(left_foot.transform.position, player_objects[Kinect.JointType.FootLeft].transform.position, Time.deltaTime * 10.0f);
-
         //Adjust body rotation
         Vector3 spine = player_objects[Kinect.JointType.SpineShoulder].transform.position - player_objects[Kinect.JointType.SpineMid].transform.position;
         Vector3 spine_rotation = player_objects[Kinect.JointType.ShoulderLeft].transform.position - player_objects[Kinect.JointType.ShoulderRight].transform.position;
         Vector3 spine_forward = Vector3.Cross(spine_rotation, spine);
 
-        player_body.transform.position = player_objects[Kinect.JointType.SpineMid].transform.position;
-        player_body.transform.rotation = Quaternion.Slerp(player_body.transform.rotation, Quaternion.LookRotation(spine_forward, spine), Time.deltaTime * 10.0f);
-
-        //Adjust head rotation
-        head_model.transform.position = player_objects[Kinect.JointType.Head].transform.position;
-        head_model.transform.rotation = Quaternion.Slerp(head_model.transform.rotation, eyes.transform.rotation, Time.deltaTime * 10.0f);
-
+        torso.transform.position = player_objects[Kinect.JointType.SpineMid].transform.position;
+        torso.transform.rotation = Quaternion.Slerp(torso.transform.rotation, Quaternion.LookRotation(spine_forward, spine), Time.deltaTime * 10.0f);
 
         Vector3 r_handVector = player_objects[Kinect.JointType.HandTipRight].transform.position - player_objects[Kinect.JointType.HandRight].transform.position;
         Vector3 l_handVector = player_objects[Kinect.JointType.HandTipLeft].transform.position - player_objects[Kinect.JointType.HandLeft].transform.position;
@@ -464,28 +425,7 @@ public class BodySourceView : MonoBehaviour
         }
     }
 
-    IEnumerator alignCountDown()
-    {
-        Camera c = eyes.GetComponent<Camera>();
-        int oldMask = c.cullingMask;
-        c.cullingMask = (1 << LayerMask.NameToLayer("TV") | 1 << LayerMask.NameToLayer("UI"));
-        //for debugging purposes
-        string alignText = "Line up the red dots! \n";
-        colorScreen.SetActive(true);
-        for (int i = 5; i >= 0; i--)
-        {
-            string newText = alignText;
-            newText += i.ToString();
-            countdown.text = newText;
-            yield return new WaitForSeconds(1);
-        }
-        colorScreen.SetActive(false);
-        c.cullingMask = oldMask;
-        countdown.text = "";
-        colorScreen.GetComponent<ColorSourceView>().pause(true);
-        eyeMarker.SetActive(false);
-        InputTracking.Recenter();
-    }
+
 
     public GameObject getBodyPart(Kinect.JointType jt)
     {
@@ -495,7 +435,7 @@ public class BodySourceView : MonoBehaviour
     private GameObject CreateBodyObject(Kinect.Body kinectBody)
     {
         ulong id = kinectBody.TrackingId;
-        GameObject body = startBody;
+        GameObject body = bodyRoot;
         for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
         {
             GameObject jointObj = new GameObject();
@@ -508,8 +448,7 @@ public class BodySourceView : MonoBehaviour
             bodyFilters.Add(jt, new KalmanFilter());
             player_objects.Add(jt, jointObj);
         }
-
-        StartCoroutine(alignCountDown());
+        InputTracking.Recenter();
         return body;
     }
 
@@ -567,23 +506,8 @@ public class BodySourceView : MonoBehaviour
 
     }
 
-    private static Color GetColorForState(Kinect.TrackingState state)
-    {
-        switch (state)
-        {
-            case Kinect.TrackingState.Tracked:
-                return Color.green;
-
-            case Kinect.TrackingState.Inferred:
-                return Color.red;
-
-            default:
-                return Color.black;
-        }
-    }
-
     private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
     {
-        return new Vector3(-joint.Position.X * 70, joint.Position.Y * 70, joint.Position.Z * 70);
+        return new Vector3(-joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);
     }
 }
