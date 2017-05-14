@@ -18,7 +18,6 @@ public class KinectCamera : MonoBehaviour
     public GameObject torso;
     public GameObject head;
     private GameObject bodyRoot;
-    public Text countdown;
     public int tracking_frames = 8;
     public bool rightHandClosed = false;
     public bool leftHandClosed = false;
