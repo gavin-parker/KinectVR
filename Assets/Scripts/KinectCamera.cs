@@ -47,7 +47,8 @@ public class KinectCamera : MonoBehaviour
     private GameObject trackedBodyObject;
     private Dictionary<Kinect.JointType, Transform> bodyTransforms = new Dictionary<Kinect.JointType, Transform>();
     private Dictionary<Kinect.JointType, KalmanFilter> bodyFilters = new Dictionary<Kinect.JointType, KalmanFilter>();
-    private Dictionary<Kinect.JointType, Vector3> bodyPositions = new Dictionary<Kinect.JointType, Vector3>();
+    [HideInInspector]
+    public Dictionary<Kinect.JointType, Vector3> bodyPositions = new Dictionary<Kinect.JointType, Vector3>();
 
     public Kinect.JointType[] essentialJoints;
     private Kinect.JointType[] unessentialJoints;
@@ -431,6 +432,19 @@ public class KinectCamera : MonoBehaviour
         }
     }
 
+    public FingerState getFingers(bool is_right_hand)
+    {
+        if (is_right_hand)
+        {
+            return new FingerState(bodyPositions[Kinect.JointType.HandTipRight], bodyPositions[Kinect.JointType.ThumbRight]);
+        }
+        else
+        {
+            return new FingerState(bodyPositions[Kinect.JointType.HandTipLeft], bodyPositions[Kinect.JointType.ThumbLeft]);
+
+        }
+
+    }
 
 
     public GameObject getBodyPart(Kinect.JointType jt)

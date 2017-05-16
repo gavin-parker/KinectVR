@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using System;
 
 public abstract class Hand : MonoBehaviour
 {
@@ -40,11 +41,21 @@ public abstract class Hand : MonoBehaviour
         lastPosition = transform.position;
     }
 
+
+    protected abstract void updateFingers();
     // Update is called once per frame
     void Update()
     {
         velocity = (transform.position - lastPosition) / Time.deltaTime;
         lastPosition = transform.position;
+        try
+        {
+            updateFingers();
+        }
+        catch (Exception e)
+        {
+
+        }
     }
 
     public void openHand()
