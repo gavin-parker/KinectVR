@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections;
 
-public class Hand : MonoBehaviour
+public abstract class Hand : MonoBehaviour
 {
 
     public enum HandStatus { Open, Close };
@@ -53,6 +53,7 @@ public class Hand : MonoBehaviour
         {
             status = HandStatus.Open;
             change = true;
+            open();
         }
 
     }
@@ -63,9 +64,13 @@ public class Hand : MonoBehaviour
         {
             status = HandStatus.Close;
             change = true;
+            close();
         }
 
     }
+
+    protected abstract void close();
+    protected abstract void open();
 
     private GameObject getClosestObject()
     {

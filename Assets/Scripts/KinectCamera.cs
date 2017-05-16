@@ -299,6 +299,7 @@ public class KinectCamera : MonoBehaviour
             {
                 rightHandClosed = true;
                 r_hand_open_frames = 0;
+                right_hand.closeHand();
             }
 
 
@@ -310,6 +311,8 @@ public class KinectCamera : MonoBehaviour
             {
                 rightHandClosed = false;
                 r_hand_closed_frames = 0;
+                right_hand.openHand();
+
             }
 
 
@@ -322,6 +325,8 @@ public class KinectCamera : MonoBehaviour
             {
                 leftHandClosed = true;
                 l_hand_open_frames = 0;
+                left_hand.closeHand();
+
             }
 
         }
@@ -332,6 +337,8 @@ public class KinectCamera : MonoBehaviour
             {
                 leftHandClosed = false;
                 l_hand_closed_frames = 0;
+                left_hand.openHand();
+
             }
 
         }
