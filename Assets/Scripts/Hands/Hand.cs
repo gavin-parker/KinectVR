@@ -22,7 +22,7 @@ public abstract class Hand : MonoBehaviour
     public KinectCamera kinect_view;
 
     private HashSet<Collider> onBounds;
-
+    private Collider grabColider;
     public bool right_hand;
 
     private void Awake()
@@ -79,6 +79,7 @@ public abstract class Hand : MonoBehaviour
         }
 
     }
+
 
     protected abstract void close();
     protected abstract void open();

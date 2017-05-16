@@ -8,7 +8,7 @@ using UnityEngine.UI;
 using System.Threading;
 using System;
 using System.Linq;
-
+using System.Text;
 
 public class KinectCamera : MonoBehaviour
 {
@@ -18,6 +18,8 @@ public class KinectCamera : MonoBehaviour
     public GameObject torso;
     public GameObject head;
     private GameObject bodyRoot;
+    private StringBuilder csv;
+    public KinectStartState startState;
     public int tracking_frames = 8;
     public bool rightHandClosed = false;
     public bool leftHandClosed = false;
@@ -86,6 +88,8 @@ public class KinectCamera : MonoBehaviour
 
     private void Start()
     {
+        csv = new StringBuilder();
+        csv.AppendLine("thumbDist, fingerDist, time");
         List<Kinect.JointType> importantJoints = essentialJoints.ToList<Kinect.JointType>();
         List<Kinect.JointType> unimportantJoints = new List<Kinect.JointType>();
         bodyRoot = new GameObject();
@@ -183,10 +187,15 @@ public class KinectCamera : MonoBehaviour
                 break;
             }
         }
+        if (started)
+        {
+            logData();
+        }
     }
 
     void OnApplicationQuit()
     {
+        File.WriteAllText("log.csv", csv.ToString());
         runningThread = false;
         if (bodyThread != null)
         {
@@ -234,6 +243,24 @@ public class KinectCamera : MonoBehaviour
                 Thread.CurrentThread.Abort();
             }
         }
+    }
+
+
+    private void logData()
+    {
+
+        //before your loop
+
+        float thumbDist = Vector3.Magnitude(bodyPositions[Windows.Kinect.JointType.ThumbRight] - bodyPositions[Windows.Kinect.JointType.HandRight]);
+        float fingerDist = Vector3.Magnitude(bodyPositions[Windows.Kinect.JointType.HandTipRight] - bodyPositions[Windows.Kinect.JointType.HandRight]);
+        float time = Time.realtimeSinceStartup;
+
+
+
+        var newLine = thumbDist.ToString() + "," + fingerDist.ToString() + "," + time.ToString();
+        csv.AppendLine(newLine);
+
+        //after your loop
     }
 
 
