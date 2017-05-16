@@ -193,6 +193,24 @@ public class KinectCamera : MonoBehaviour
         }
     }
 
+    void alignKinect()
+    {
+        if (startState.useStartState)
+        {
+            //difference vector from actual head to desired start location
+            Vector3 difference = startState.headLocation.transform.position - head.transform.position;
+
+            transform.position -= difference;
+            try
+            {
+                Vector3 foot = bodyPositions[Kinect.JointType.FootRight];
+                float height = Vector3.Distance(foot, head.transform.position);
+            }
+            catch { };
+        }
+
+    }
+
     void OnApplicationQuit()
     {
         File.WriteAllText("log.csv", csv.ToString());
@@ -393,6 +411,7 @@ public class KinectCamera : MonoBehaviour
             Quaternion target = Quaternion.LookRotation(l_handVector, l_handUp);
             left_hand.transform.rotation = Quaternion.Slerp(left_hand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
+        
 
         //Debug.Log("Right hand spread: " + (r_handVector.sqrMagnitude + r_handRotation.sqrMagnitude));
     }

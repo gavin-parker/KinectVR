@@ -6,8 +6,8 @@ using UnityEngine;
 [Serializable]
 public class KinectStartState
 {
-    bool useStartState;
-    GameObject headLocation;
-    float height;
+    public bool useStartState;
+    public GameObject headLocation;
+    public float height;
 }
 
