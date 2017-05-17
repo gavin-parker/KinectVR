@@ -7,7 +7,7 @@ using UnityEngine;
 public class KinectStartState
 {
     public bool useStartState;
-    public GameObject headLocation;
+    public GameObject startLocation;
     public float height;
 }
 

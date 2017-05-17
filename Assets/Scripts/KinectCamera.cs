@@ -19,6 +19,7 @@ public class KinectCamera : MonoBehaviour
     public GameObject head;
     private GameObject bodyRoot;
     private StringBuilder csv;
+    private Vector3 playerPositionOffset = new Vector3(0,0,0);
     public KinectStartState startState;
     public int tracking_frames = 8;
     public bool rightHandClosed = false;
@@ -174,13 +175,21 @@ public class KinectCamera : MonoBehaviour
                         trackedBodyObject = _Bodies[body.TrackingId];
                         bodyThread = new Thread(new ThreadStart(refreshBody));
                         bodyThread.Start();
-
+                        StartCoroutine(waitToAlign(2));
                     }
                 }
                 if (body.TrackingId == player_id)
                 {
-                    UpdateBodyObject(body, _Bodies[body.TrackingId]);
-                    adjustBodyParts(body, _Bodies[body.TrackingId]);
+                    try
+                    {
+                        UpdateBodyObject(body, _Bodies[body.TrackingId]);
+                        adjustBodyParts(body, _Bodies[body.TrackingId]);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError("Error getting body");
+                        Debug.LogError(e);
+                    }
                     //Debug.DrawLine(playerBounds.min, playerBounds.max, Color.red, 2f);
 
                 }
@@ -189,25 +198,41 @@ public class KinectCamera : MonoBehaviour
         }
         if (started)
         {
-            logData();
+            try
+            {
+                logData();
+            }
+            catch (Exception e)
+            {
+
+            }
+
         }
     }
+
+    IEnumerator waitToAlign(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        alignKinect();
+        Debug.Log("aligned");
+    }
+
 
     void alignKinect()
     {
         if (startState.useStartState)
         {
-            //difference vector from actual head to desired start location
-            Vector3 difference = startState.headLocation.transform.position - head.transform.position;
-
-            transform.position -= difference;
-            try
-            {
-                Vector3 foot = bodyPositions[Kinect.JointType.FootRight];
-                float height = Vector3.Distance(foot, head.transform.position);
-            }
-            catch { };
+            warpToLocation(startState.startLocation.transform.position);
         }
+
+    }
+
+    //Warps the player to a given location ( the location should be at desired eye level)
+    public void warpToLocation(Vector3 target)
+    {
+        Vector3 actualHeadLocation = bodyPositions[Kinect.JointType.Head];
+        Vector3 difference = target - actualHeadLocation;
+        playerPositionOffset = difference;
 
     }
 
@@ -411,7 +436,7 @@ public class KinectCamera : MonoBehaviour
             Quaternion target = Quaternion.LookRotation(l_handVector, l_handUp);
             left_hand.transform.rotation = Quaternion.Slerp(left_hand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
-        
+
 
         //Debug.Log("Right hand spread: " + (r_handVector.sqrMagnitude + r_handRotation.sqrMagnitude));
     }
@@ -570,8 +595,8 @@ public class KinectCamera : MonoBehaviour
 
     }
 
-    private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
+    private Vector3 GetVector3FromJoint(Kinect.Joint joint)
     {
-        return new Vector3(-joint.Position.X * 2, joint.Position.Y * 2, joint.Position.Z * 2);
+        return playerPositionOffset +  new Vector3(-joint.Position.X * 2, joint.Position.Y * 2, joint.Position.Z * 2);
     }
 }
