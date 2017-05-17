@@ -5,7 +5,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.VR;
 using Windows.Kinect;
-
+using NUnit.Framework.Constraints;
+using System.Collections;
 
 public class KinectPlayer : MonoBehaviour
 {
@@ -23,6 +24,9 @@ public class KinectPlayer : MonoBehaviour
     public Dictionary<JointType, Vector3> BodyPositions = new Dictionary<JointType, Vector3>();
     //holds all the hand joint objects - palm, wrist, thumb, tip
     public Dictionary<JointType, GameObject> PlayerObjects = new Dictionary<JointType, GameObject>();
+
+    private HandFilter _rightHandFilter = new HandFilter(3);
+    private HandFilter _leftHandFilter = new HandFilter(3);
 
     private Windows.Kinect.Body _trackedBody;
     private Vector3 _playerPositionOffset = new Vector3(0, 0, 0);
@@ -63,14 +67,22 @@ public class KinectPlayer : MonoBehaviour
         LeftHand.init(this, Kinect);
         if (IsMainPlayer)
         {
-            InputTracking.Recenter();
-            Head.GetComponentInChildren<Camera>().tag = "MainCamera";
+            StartCoroutine(AlignTracking());
         }
         else
         {
             Head.GetComponentInChildren<Camera>().tag = "Untagged";
         }
         return newBody;
+    }
+
+    private IEnumerator AlignTracking()
+    {
+        yield return new WaitForSeconds(3);
+        InputTracking.Recenter();
+        Head.GetComponentInChildren<Camera>().tag = "MainCamera";
+
+
     }
 
 
@@ -139,30 +151,52 @@ public class KinectPlayer : MonoBehaviour
         {
             if (_trackedBody.HandRightState == HandState.Closed)
             {
-                RightHand.closeHand();
+                RightHand.CloseHand();
             }
             else
             {
-                RightHand.openHand();
+                RightHand.OpenHand();
             }
         }
+        else
+        {
+            if (_rightHandFilter.Predict())
+
+            {
+                RightHand.CloseHand();
+            }
+            else
+            {
+                RightHand.OpenHand();
+            }
+
+        }
+
 
         if (LeftHand.trackingConfidence == TrackingConfidence.High)
         {
             if (_trackedBody.HandLeftState == HandState.Closed)
             {
-                LeftHand.closeHand();
+                LeftHand.CloseHand();
             }
             else
             {
-                LeftHand.openHand();
+                LeftHand.OpenHand();
+            }
+        }
+        else
+        {
+            if (_leftHandFilter.Predict())
+            {
+                LeftHand.CloseHand();
+            }
+            else
+            {
+                LeftHand.OpenHand();
             }
         }
         AdjustHands();
-
     }
-
-
 
     private void AdjustHands()
     {
@@ -224,6 +258,8 @@ public class KinectPlayer : MonoBehaviour
             Vector3 pos = GetVector3FromJoint(sourceJoint);
             BodyPositions[jt] = GetVector3FromJoint(sourceJoint);
         }
+        _rightHandFilter.Record(_trackedBody.HandRightState == HandState.Closed);
+        _leftHandFilter.Record(_trackedBody.HandLeftState == HandState.Closed);
 
     }
 

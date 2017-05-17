@@ -27,11 +27,6 @@ class BlockHand : Hand
         logger = new StringBuilder();
     }
 
-    protected override void updateFingers()
-    {
-     
-    }
-
     protected override void close()
     {
         animator.SetBool("Closed", true);
@@ -48,7 +43,6 @@ class BlockHand : Hand
         if (right_hand)
         {
             File.WriteAllText("fingerDist.csv", logger.ToString());
-
         }
     }
 

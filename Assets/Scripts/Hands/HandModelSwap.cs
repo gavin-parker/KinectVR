@@ -22,9 +22,5 @@ class HandModelSwap : Hand
         closeModel.SetActive(true);
     }
 
-    protected override void updateFingers()
-    {
-        
-    }
 }
 

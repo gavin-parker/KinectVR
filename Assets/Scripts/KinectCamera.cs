@@ -13,10 +13,6 @@ using System.Text;
 public class KinectCamera : MonoBehaviour
 {
     public GameObject BodySourceManager;
-    public Hand RightHand;
-    public Hand LeftHand;
-    public GameObject Torso;
-    public GameObject Head;
     private GameObject _bodyRoot;
     public KinectStartState StartState;
     //private ulong player_id = 99;
@@ -154,16 +150,17 @@ public class KinectCamera : MonoBehaviour
                     GameObject newBody = new GameObject();
                     KinectPlayer newPlayer = Instantiate(Resources.Load("BlockPlayer") as GameObject, new Vector3(0, 0, 0), Quaternion.identity).GetComponent<KinectPlayer>();
                     newPlayer.Kinect = this;
-                    Bodies[body.TrackingId] = newPlayer.CreateBodyObject(body, newBody);
-                    newPlayer.WarpToLocation(new Vector3(0, 1.5f, 0));
-                    players.Add(newPlayer);
-                    if (players.Count == 1)
+                    if (players.Count == 0)
                     {
                         newPlayer.makeMainPlayer(true);
                     }
+                    Bodies[body.TrackingId] = newPlayer.CreateBodyObject(body, newBody);
+                    newPlayer.WarpToLocation(new Vector3(0, 1.5f, 0));
+                    players.Add(newPlayer);
+
                     _bodyThread = new Thread(new ThreadStart(RefreshBody));
                     _bodyThread.Start();
-                    
+
                 }
 
                 foreach (KinectPlayer player in players)

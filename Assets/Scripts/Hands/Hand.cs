@@ -15,27 +15,24 @@ public abstract class Hand : MonoBehaviour
     private bool change = false;
 
     private Vector3 lastPosition;
-    private Vector3 velocity;
-    GameObject heldObject;
+    public Vector3 velocity;
+    Grabbable heldObject;
 
 
     public Collider[] things;
     public GameObject grab_position;
     public KinectCamera kinect_view;
 
-    private HashSet<Collider> onBounds;
-    private Collider grabColider;
-    public bool right_hand;
+    private HashSet<Collider> _onBounds;
 
-    private void Awake()
-    {
-        onBounds = new HashSet<Collider>();
-    }
+    public bool right_hand;
 
     public void init(KinectPlayer player, KinectCamera camera)
     {
         this.player = player;
         this.kinect_view = camera;
+        _onBounds = new HashSet<Collider>();
+
     }
     // Use this for initialization
     void Start()
@@ -49,40 +46,35 @@ public abstract class Hand : MonoBehaviour
     }
 
 
-    protected abstract void updateFingers();
     // Update is called once per frame
     void Update()
     {
         velocity = (transform.position - lastPosition) / Time.deltaTime;
         lastPosition = transform.position;
-        try
-        {
-            updateFingers();
-        }
-        catch (Exception e)
-        {
 
-        }
     }
 
-    public void openHand()
+    public void OpenHand()
     {
         if (status == HandStatus.Close)
         {
             status = HandStatus.Open;
             change = true;
             open();
+            ReleaseObject();
         }
 
     }
 
-    public void closeHand()
+    public void CloseHand()
     {
         if (status == HandStatus.Open)
         {
             status = HandStatus.Close;
             change = true;
             close();
+            GrabObject();
+
         }
 
     }
@@ -91,23 +83,24 @@ public abstract class Hand : MonoBehaviour
     protected abstract void close();
     protected abstract void open();
 
-    private GameObject getClosestObject()
+    private Grabbable GetClosestObject()
     {
-        GameObject closest = null;
+        Grabbable closest = null;
         Vector3 p = grab_position.transform.position;
         float distance = Mathf.Infinity;
-        if (onBounds.Count > 0)
+        if (_onBounds.Count > 0)
         {
-            foreach (Collider g in onBounds)
+            foreach (Collider g in _onBounds)
             {
                 if (g != null)
                 {
                     Vector3 diff = g.ClosestPointOnBounds(p) - p;
                     float current_distance = diff.sqrMagnitude;
-                    if (current_distance < distance)
+                    Grabbable grabbable = g.gameObject.GetComponent<Grabbable>();
+                    if (current_distance < distance && grabbable != null)
                     {
                         distance = current_distance;
-                        closest = g.gameObject;
+                        closest = grabbable;
                     }
                 }
             }
@@ -117,7 +110,7 @@ public abstract class Hand : MonoBehaviour
 
 
     //checks a surrounding sphere for objects, grabs them
-    private void grabObject()
+    private void GrabObject()
     {
         if (holding) return;
         heldObject = null;
@@ -127,18 +120,19 @@ public abstract class Hand : MonoBehaviour
             return;
         }
 
-        GameObject grabTarget = getClosestObject();
+        Grabbable grabTarget = GetClosestObject();
         if (grabTarget == null) return;
+        grabTarget.Grab(this);
+        heldObject = grabTarget;
     }
 
-    private void releaseObject()
+    private void ReleaseObject()
     {
-        if (heldObject == null)
-        {
-            onBounds.Clear();
-            holding = false;
-            return;
-        }
+        if (heldObject == null) return;
+        _onBounds.Clear();
+        holding = false;
+        heldObject.Release(this);
+        return;
     }
 
     //function called to snap object to palm 
@@ -157,27 +151,28 @@ public abstract class Hand : MonoBehaviour
     {
         if (other == null) return;
         GameObject gother = other.gameObject;
-        if (gother.layer == 9 || gother.layer == 10 || gother.layer == 14 && !holding && onBounds != null)
+        if (!gother.CompareTag("Hand") && !holding && _onBounds != null)
         {
-            onBounds.Add(other);
+            _onBounds.Add(other);
         }
     }
     private void OnTriggerStay(Collider other)
     {
         if (other == null) return;
         GameObject gother = other.gameObject;
-        if (gother.layer == 9 || gother.layer == 10 || gother.layer == 14 && !holding && onBounds != null)
+        if (!gother.CompareTag("Hand") && !holding && _onBounds != null)
         {
-            onBounds.Add(other);
+            _onBounds.Add(other);
         }
     }
     private void OnTriggerExit(Collider other)
     {
         if (other == null) return;
         GameObject gother = other.gameObject;
-        if (gother.layer == 9 || gother.layer == 10 || gother.layer == 14 && onBounds != null)
+        if (holding && gother == heldObject.gameObject) return;
+        if (!gother.CompareTag("Hand") && _onBounds != null)
         {
-            onBounds.Remove(other);
+            _onBounds.Remove(other);
         }
     }
 }
