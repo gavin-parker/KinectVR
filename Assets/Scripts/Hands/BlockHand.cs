@@ -32,7 +32,7 @@ class BlockHand : Hand
 
     protected override void updateFingers()
     {
-        FingerState fingerState = kinect_view.getFingers(right_hand);
+        FingerState fingerState = player.getFingers(right_hand);
         //thumb.transform.rotation = Quaternion.LookRotation(fingerState.thumbTip - transform.position, Vector3.up);
         //thumb.transform.LookAt(fingerState.thumbTip);
         //fingers.transform.LookAt(fingerState.fingerTip);

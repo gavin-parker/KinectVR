@@ -9,7 +9,9 @@ public abstract class Hand : MonoBehaviour
     public enum HandStatus { Open, Close };
     public HandStatus status = HandStatus.Open;
     public bool holding = false;
-
+    public float speed;
+    public Windows.Kinect.TrackingConfidence trackingConfidence;
+    public KinectPlayer player;
     private bool change = false;
 
     private Vector3 lastPosition;
@@ -30,6 +32,11 @@ public abstract class Hand : MonoBehaviour
         onBounds = new HashSet<Collider>();
     }
 
+    public void init(KinectPlayer player, KinectCamera camera)
+    {
+        this.player = player;
+        this.kinect_view = camera;
+    }
     // Use this for initialization
     void Start()
     {

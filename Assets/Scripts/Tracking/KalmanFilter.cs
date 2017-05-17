@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-class KalmanFilter : Filter
+public class KalmanFilter : Filter
 {
     IKalmanWrapper kalman;
     Vector3 recording = new Vector3(0, 0, 0);
