@@ -13,29 +13,25 @@ using System.Text;
 public class KinectCamera : MonoBehaviour
 {
     public GameObject BodySourceManager;
-    public Hand right_hand;
-    public Hand left_hand;
-    public GameObject torso;
-    public GameObject head;
-    private GameObject bodyRoot;
-    private StringBuilder csv;
-    private Vector3 playerPositionOffset = new Vector3(0, 0, 0);
-    public KinectStartState startState;
+    public Hand RightHand;
+    public Hand LeftHand;
+    public GameObject Torso;
+    public GameObject Head;
+    private GameObject _bodyRoot;
+    public KinectStartState StartState;
     //private ulong player_id = 99;
-    bool runningThread = true;
-    private bool started = true;
-    private Thread bodyThread = null;
+    bool _runningThread = true;
+    private bool _started = true;
+    private Thread _bodyThread = null;
     public enum TrackingContext { Slow, Medium, Fast };
 
 
-    private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
-    private BodySourceManager _BodyManager;
+    private readonly Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
+    private BodySourceManager _bodyManager;
 
-    private Kinect.Body trackedBody;
-    private GameObject trackedBodyObject;
-    public Kinect.JointType[] essentialJoints;
-    public Kinect.JointType[] unessentialJoints;
-    public Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
+    public Kinect.JointType[] EssentialJoints;
+    public Kinect.JointType[] UnessentialJoints;
+    public Dictionary<Kinect.JointType, Kinect.JointType> BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
     {
         { Kinect.JointType.FootLeft, Kinect.JointType.AnkleLeft },
         { Kinect.JointType.AnkleLeft, Kinect.JointType.KneeLeft },
@@ -67,13 +63,27 @@ public class KinectCamera : MonoBehaviour
         { Kinect.JointType.Neck, Kinect.JointType.Head },
     };
 
-    private List<KinectPlayer> players = new List<KinectPlayer>();
+    private readonly List<KinectPlayer> players = new List<KinectPlayer>();
+
+    public Dictionary<ulong, GameObject> Bodies
+    {
+        get
+        {
+            return Bodies1;
+        }
+    }
+
+    public Dictionary<ulong, GameObject> Bodies1
+    {
+        get
+        {
+            return _Bodies;
+        }
+    }
 
     private void Start()
     {
-        csv = new StringBuilder();
-        csv.AppendLine("thumbDist, fingerDist, time");
-        List<Kinect.JointType> importantJoints = essentialJoints.ToList<Kinect.JointType>();
+        List<Kinect.JointType> importantJoints = EssentialJoints.ToList<Kinect.JointType>();
         List<Kinect.JointType> unimportantJoints = new List<Kinect.JointType>();
         for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
         {
@@ -82,7 +92,7 @@ public class KinectCamera : MonoBehaviour
                 unimportantJoints.Add(jt);
             }
         }
-        unessentialJoints = unimportantJoints.ToArray<Kinect.JointType>();
+        UnessentialJoints = unimportantJoints.ToArray<Kinect.JointType>();
     }
     void Update()
     {
@@ -91,13 +101,13 @@ public class KinectCamera : MonoBehaviour
             return;
         }
 
-        _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
-        if (_BodyManager == null)
+        _bodyManager = BodySourceManager.GetComponent<BodySourceManager>();
+        if (_bodyManager == null)
         {
             return;
         }
 
-        Kinect.Body[] data = _BodyManager.GetData();
+        Kinect.Body[] data = _bodyManager.GetData();
         if (data == null)
         {
             return;
@@ -118,15 +128,15 @@ public class KinectCamera : MonoBehaviour
             }
         }
 
-        List<ulong> knownIds = new List<ulong>(_Bodies.Keys);
+        List<ulong> knownIds = new List<ulong>(Bodies.Keys);
 
         // First delete untracked bodies
         foreach (ulong trackingId in knownIds)
         {
             if (!trackedIds.Contains(trackingId))
             {
-                Destroy(_Bodies[trackingId]);
-                _Bodies.Remove(trackingId);
+                Destroy(Bodies[trackingId]);
+                Bodies.Remove(trackingId);
             }
         }
 
@@ -139,27 +149,37 @@ public class KinectCamera : MonoBehaviour
 
             if (body.IsTracked)
             {
-                if (!_Bodies.ContainsKey(body.TrackingId))
+                if (!Bodies.ContainsKey(body.TrackingId))
                 {
                     GameObject newBody = new GameObject();
                     KinectPlayer newPlayer = Instantiate(Resources.Load("BlockPlayer") as GameObject, new Vector3(0, 0, 0), Quaternion.identity).GetComponent<KinectPlayer>();
-                    newPlayer.kinect = this;
-                    _Bodies[body.TrackingId] = newPlayer.CreateBodyObject(body, newBody);
-                    trackedBody = body;
-                    trackedBodyObject = _Bodies[body.TrackingId];
+                    newPlayer.Kinect = this;
+                    Bodies[body.TrackingId] = newPlayer.CreateBodyObject(body, newBody);
+                    newPlayer.WarpToLocation(new Vector3(0, 1.5f, 0));
                     players.Add(newPlayer);
-                    bodyThread = new Thread(new ThreadStart(refreshBody));
-                    bodyThread.Start();
-                    StartCoroutine(waitToAlign(2));
-
+                    if (players.Count == 1)
+                    {
+                        newPlayer.makeMainPlayer(true);
+                    }
+                    _bodyThread = new Thread(new ThreadStart(RefreshBody));
+                    _bodyThread.Start();
+                    
                 }
 
                 foreach (KinectPlayer player in players)
                 {
                     try
                     {
-                        player.UpdateBodyObject();
-                        player.adjustBodyParts();
+                        if (player.IsTracked())
+                        {
+                            player.gameObject.SetActive(true);
+                            player.UpdateBodyObject();
+                            player.AdjustBodyParts();
+                        }
+                        else
+                        {
+                            player.gameObject.SetActive(false);
+                        }
                     }
                     catch (Exception e)
                     {
@@ -171,83 +191,52 @@ public class KinectCamera : MonoBehaviour
                 break;
             }
         }
-        if (started)
-        {
-            try
-            {
-                logData();
-            }
-            catch (Exception e)
-            {
-
-            }
-
-        }
     }
-
-    IEnumerator waitToAlign(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        alignKinect();
-        Debug.Log("aligned");
-    }
-
-
-    void alignKinect()
-    {
-        if (startState.useStartState)
-        {
-            //warpToLocation(startState.startLocation.transform.position);
-        }
-
-    }
-
-
 
     void OnApplicationQuit()
     {
-        File.WriteAllText("log.csv", csv.ToString());
-        runningThread = false;
-        if (bodyThread != null)
+        _runningThread = false;
+        if (_bodyThread != null)
         {
             try
             {
-                bodyThread.Join();
+                _bodyThread.Join();
             }
             catch (Exception e)
             {
-                bodyThread.Abort();
+                _bodyThread.Abort();
 
             }
         }
     }
     void OnDestroyed()
     {
-        runningThread = false;
-        if (bodyThread != null)
+        _runningThread = false;
+        if (_bodyThread == null) return;
+        try
         {
-            try
-            {
-                bodyThread.Join();
-            }
-            catch (Exception e)
-            {
-                bodyThread.Abort();
+            _bodyThread.Join();
+        }
+        catch (Exception e)
+        {
+            _bodyThread.Abort();
 
-            }
         }
     }
 
-    private void refreshBody()
+    private void RefreshBody()
     {
-        while (runningThread)
+        while (_runningThread)
         {
 
             foreach (KinectPlayer player in players)
             {
                 try
                 {
-                    player.RefreshBodyObject();
+                    if (player.IsTracked())
+                    {
+                        player.RefreshBodyObject();
+                    }
                 }
                 catch (System.Exception e)
                 {
@@ -260,28 +249,5 @@ public class KinectCamera : MonoBehaviour
         }
     }
 
-
-    private void logData()
-    {
-
-        //before your loop
-
-        //float thumbDist = Vector3.Magnitude(bodyPositions[Windows.Kinect.JointType.ThumbRight] - bodyPositions[Windows.Kinect.JointType.HandRight]);
-        //float fingerDist = Vector3.Magnitude(bodyPositions[Windows.Kinect.JointType.HandTipRight] - bodyPositions[Windows.Kinect.JointType.HandRight]);
-        //float time = Time.realtimeSinceStartup;
-
-
-
-        //var newLine = thumbDist.ToString() + "," + fingerDist.ToString() + "," + time.ToString();
-        //csv.AppendLine(newLine);
-
-        //after your loop
-    }
-
-    //takes the tracking context of the hand and returns the number of continuous frames required to make a state change
-    private int getTrackingFrames(bool rightHand)
-    {
-        return 1;
-    }
 
 }

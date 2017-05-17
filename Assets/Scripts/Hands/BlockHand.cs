@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
@@ -9,6 +10,13 @@ class BlockHand : Hand
     public GameObject thumb;
     public GameObject fingers;
     public Animator animator;
+    private StringBuilder logger;
+
+
+    private float _lastFingerDist = 0f;
+    private float _minFingerDist = 1.0f;
+    private float _maxFingerDist = 0.0f;
+
 
     void Awake()
     {
@@ -16,29 +24,33 @@ class BlockHand : Hand
         {
             animator = GetComponent<Animator>();
         }
-    }
-
-
-    protected override void close()
-    {
-        animator.SetBool("closed", true);
-    }
-
-    protected override void open()
-    {
-        animator.SetBool("closed", false);
-
+        logger = new StringBuilder();
     }
 
     protected override void updateFingers()
     {
-        FingerState fingerState = player.getFingers(right_hand);
-        //thumb.transform.rotation = Quaternion.LookRotation(fingerState.thumbTip - transform.position, Vector3.up);
-        //thumb.transform.LookAt(fingerState.thumbTip);
-        //fingers.transform.LookAt(fingerState.fingerTip);
-        Debug.DrawLine(transform.position, fingerState.fingerTip, Color.red, 1f);
-        Debug.DrawLine(transform.position, fingerState.thumbTip, Color.red, 1f);
+     
+    }
+
+    protected override void close()
+    {
+        animator.SetBool("Closed", true);
+    }
+
+    protected override void open()
+    {
+        animator.SetBool("Closed", false);
 
     }
+
+    void OnApplicationQuit()
+    {
+        if (right_hand)
+        {
+            File.WriteAllText("fingerDist.csv", logger.ToString());
+
+        }
+    }
+
 }
 

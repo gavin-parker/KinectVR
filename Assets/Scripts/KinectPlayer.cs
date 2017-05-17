@@ -9,43 +9,43 @@ using Windows.Kinect;
 
 public class KinectPlayer : MonoBehaviour
 {
-    public GameObject head;
-    public Hand rightHand;
-    public Hand leftHand;
-    public GameObject torso;
-    public KinectCamera kinect;
-    public ulong id;
-    public bool isMainPlayer;
+    public GameObject Head;
+    public Hand RightHand;
+    public Hand LeftHand;
+    public GameObject Torso;
+    public KinectCamera Kinect;
+    public ulong Id;
+    public bool IsMainPlayer;
 
     [HideInInspector]
-    public Dictionary<JointType, Transform> bodyTransforms = new Dictionary<JointType, Transform>();
-    public Dictionary<JointType, KalmanFilter> bodyFilters = new Dictionary<JointType, KalmanFilter>();
-    public Dictionary<JointType, Vector3> bodyPositions = new Dictionary<JointType, Vector3>();
+    public Dictionary<JointType, Transform> BodyTransforms = new Dictionary<JointType, Transform>();
+    public Dictionary<JointType, KalmanFilter> BodyFilters = new Dictionary<JointType, KalmanFilter>();
+    public Dictionary<JointType, Vector3> BodyPositions = new Dictionary<JointType, Vector3>();
     //holds all the hand joint objects - palm, wrist, thumb, tip
-    public Dictionary<JointType, GameObject> player_objects = new Dictionary<JointType, GameObject>();
+    public Dictionary<JointType, GameObject> PlayerObjects = new Dictionary<JointType, GameObject>();
 
-    private Windows.Kinect.Body trackedBody;
-    private Vector3 playerPositionOffset = new Vector3(0, 0, 0);
+    private Windows.Kinect.Body _trackedBody;
+    private Vector3 _playerPositionOffset = new Vector3(0, 0, 0);
 
     //Warps the player to a given location ( the location should be at desired eye level)
-    public void warpToLocation(Vector3 target)
+    public void WarpToLocation(Vector3 target)
     {
-        Vector3 actualHeadLocation = bodyPositions[JointType.Head];
+        Vector3 actualHeadLocation = BodyPositions[JointType.Head];
         Vector3 difference = target - actualHeadLocation;
-        playerPositionOffset = difference;
+        _playerPositionOffset = difference;
 
     }
 
-    public GameObject getBodyPart(JointType jt)
+    public GameObject GetBodyPart(JointType jt)
     {
-        return bodyTransforms[jt].gameObject;
+        return BodyTransforms[jt].gameObject;
     }
 
     public GameObject CreateBodyObject(Body kinectBody, GameObject newBody)
     {
         ulong id = kinectBody.TrackingId;
-        trackedBody = kinectBody;
-        this.id = id;
+        _trackedBody = kinectBody;
+        this.Id = id;
         for (JointType jt = JointType.SpineBase; jt <= JointType.ThumbRight; jt++)
         {
             GameObject jointObj = new GameObject();
@@ -53,155 +53,176 @@ public class KinectPlayer : MonoBehaviour
             jointObj.transform.localScale = new Vector3(5f, 5f, 5f);
             jointObj.name = jt.ToString();
             jointObj.transform.parent = newBody.transform;
-            this.bodyTransforms.Add(jt, jointObj.transform);
-            this.bodyPositions.Add(jt, GetVector3FromJoint(kinectBody.Joints[jt]));
-            this.bodyFilters.Add(jt, new KalmanFilter());
-            this.player_objects.Add(jt, jointObj);
+            this.BodyTransforms.Add(jt, jointObj.transform);
+            this.BodyPositions.Add(jt, GetVector3FromJoint(kinectBody.Joints[jt]));
+            this.BodyFilters.Add(jt, new KalmanFilter());
+            this.PlayerObjects.Add(jt, jointObj);
         }
 
-        rightHand.init(this, kinect);
-        leftHand.init(this, kinect);
-        InputTracking.Recenter();
+        RightHand.init(this, Kinect);
+        LeftHand.init(this, Kinect);
+        if (IsMainPlayer)
+        {
+            InputTracking.Recenter();
+            Head.GetComponentInChildren<Camera>().tag = "MainCamera";
+        }
+        else
+        {
+            Head.GetComponentInChildren<Camera>().tag = "Untagged";
+        }
         return newBody;
     }
 
 
+    public void makeMainPlayer(bool mainPlayer)
+    {
+        if (mainPlayer)
+        {
+            IsMainPlayer = true;
+            Head.GetComponentInChildren<Camera>().tag = "MainCamera";
+        }
+        else
+        {
+            IsMainPlayer = false;
+            Head.GetComponentInChildren<Camera>().tag = "Untagged";
+        }
+    }
+
+    public bool IsTracked()
+    {
+        return _trackedBody.IsTracked;
+    }
     public void UpdateBodyObject()
     {
-        foreach (JointType jt in kinect.essentialJoints)
+        foreach (JointType jt in Kinect.EssentialJoints)
         {
-            Transform jointObj = bodyTransforms[jt];
-            bodyPositions[jt] = bodyFilters[jt].predict();
-            jointObj.localPosition = bodyPositions[jt];
+            Transform jointObj = BodyTransforms[jt];
+            BodyPositions[jt] = BodyFilters[jt].predict();
+            jointObj.localPosition = BodyPositions[jt];
         }
-        foreach (JointType jt in kinect.unessentialJoints)
+        foreach (JointType jt in Kinect.UnessentialJoints)
         {
-            Transform jointObj = bodyTransforms[jt];
-            jointObj.localPosition = bodyPositions[jt];
+            Transform jointObj = BodyTransforms[jt];
+            if (jointObj != null)
+            {
+                jointObj.localPosition = BodyPositions[jt];
+            }
         }
     }
 
 
     //I'm really sorry about this
-    public void adjustBodyParts()
+    public void AdjustBodyParts()
     {
 
-        head.transform.position = Vector3.Slerp(head.transform.position, player_objects[JointType.Head].transform.position, Time.deltaTime * 10.0f);
-        rightHand.speed = (player_objects[JointType.HandRight].transform.position - rightHand.transform.position).magnitude / Time.deltaTime;
-        leftHand.speed = (player_objects[JointType.HandLeft].transform.position - leftHand.transform.position).magnitude / Time.deltaTime;
-        rightHand.transform.position = Vector3.Slerp(rightHand.transform.position, player_objects[JointType.HandRight].transform.position, Time.deltaTime * 10.0f);
-        leftHand.transform.position = Vector3.Slerp(leftHand.transform.position, player_objects[JointType.HandLeft].transform.position, Time.deltaTime * 10.0f);
+        Head.transform.position = Vector3.Slerp(Head.transform.position, PlayerObjects[JointType.Head].transform.position, Time.deltaTime * 10.0f);
+        RightHand.speed = (PlayerObjects[JointType.HandRight].transform.position - RightHand.transform.position).magnitude / Time.deltaTime;
+        LeftHand.speed = (PlayerObjects[JointType.HandLeft].transform.position - LeftHand.transform.position).magnitude / Time.deltaTime;
+        RightHand.transform.position = Vector3.Slerp(RightHand.transform.position, PlayerObjects[JointType.HandRight].transform.position, Time.deltaTime * 10.0f);
+        LeftHand.transform.position = Vector3.Slerp(LeftHand.transform.position, PlayerObjects[JointType.HandLeft].transform.position, Time.deltaTime * 10.0f);
 
         //Adjust body rotation
-        Vector3 spine = player_objects[JointType.SpineShoulder].transform.position - player_objects[JointType.SpineMid].transform.position;
-        Vector3 spine_rotation = player_objects[JointType.ShoulderLeft].transform.position - player_objects[JointType.ShoulderRight].transform.position;
+        Vector3 spine = PlayerObjects[JointType.SpineShoulder].transform.position - PlayerObjects[JointType.SpineMid].transform.position;
+        Vector3 spine_rotation = PlayerObjects[JointType.ShoulderLeft].transform.position - PlayerObjects[JointType.ShoulderRight].transform.position;
         Vector3 spine_forward = Vector3.Cross(spine_rotation, spine);
 
-        torso.transform.position = player_objects[JointType.SpineMid].transform.position;
-        torso.transform.rotation = Quaternion.Slerp(torso.transform.rotation, Quaternion.LookRotation(spine_forward, spine), Time.deltaTime * 10.0f);
+        Torso.transform.position = PlayerObjects[JointType.SpineMid].transform.position;
+        Torso.transform.rotation = Quaternion.Slerp(Torso.transform.rotation, Quaternion.LookRotation(spine_forward, spine), Time.deltaTime * 10.0f);
 
 
 
-        rightHand.trackingConfidence = trackedBody.HandRightConfidence;
-        leftHand.trackingConfidence = trackedBody.HandLeftConfidence;
+        RightHand.trackingConfidence = _trackedBody.HandRightConfidence;
+        LeftHand.trackingConfidence = _trackedBody.HandLeftConfidence;
 
 
-        if (rightHand.trackingConfidence == TrackingConfidence.High)
+        if (RightHand.trackingConfidence == TrackingConfidence.High)
         {
-            if (trackedBody.HandRightState == HandState.Closed)
+            if (_trackedBody.HandRightState == HandState.Closed)
             {
-                rightHand.closeHand();
+                RightHand.closeHand();
             }
             else
             {
-                rightHand.openHand();
+                RightHand.openHand();
             }
         }
 
-        if (leftHand.trackingConfidence == TrackingConfidence.High)
+        if (LeftHand.trackingConfidence == TrackingConfidence.High)
         {
-            if (trackedBody.HandLeftState == HandState.Closed)
+            if (_trackedBody.HandLeftState == HandState.Closed)
             {
-                leftHand.closeHand();
+                LeftHand.closeHand();
             }
             else
             {
-                leftHand.openHand();
+                LeftHand.openHand();
             }
         }
-        adjustHands();
+        AdjustHands();
 
     }
 
 
 
-    private void adjustHands()
+    private void AdjustHands()
     {
-        Vector3 r_handVector = player_objects[JointType.HandTipRight].transform.position - player_objects[JointType.HandRight].transform.position;
-        Vector3 l_handVector = player_objects[JointType.HandTipLeft].transform.position - player_objects[JointType.HandLeft].transform.position;
-        Vector3 r_wristVector = player_objects[JointType.HandTipRight].transform.position - player_objects[JointType.WristRight].transform.position;
-        Vector3 l_wristVector = player_objects[JointType.HandTipLeft].transform.position - player_objects[JointType.WristLeft].transform.position;
+        Vector3 rHandVector = PlayerObjects[JointType.HandTipRight].transform.position - PlayerObjects[JointType.HandRight].transform.position;
+        Vector3 lHandVector = PlayerObjects[JointType.HandTipLeft].transform.position - PlayerObjects[JointType.HandLeft].transform.position;
+        Vector3 rWristVector = PlayerObjects[JointType.HandTipRight].transform.position - PlayerObjects[JointType.WristRight].transform.position;
+        Vector3 lWristVector = PlayerObjects[JointType.HandTipLeft].transform.position - PlayerObjects[JointType.WristLeft].transform.position;
 
-        Vector3 r_handRotation = player_objects[JointType.ThumbRight].transform.position - player_objects[JointType.HandRight].transform.position;
-        Vector3 l_handRotation = player_objects[JointType.ThumbLeft].transform.position - player_objects[JointType.HandLeft].transform.position;
+        Vector3 rHandRotation = PlayerObjects[JointType.ThumbRight].transform.position - PlayerObjects[JointType.HandRight].transform.position;
+        Vector3 lHandRotation = PlayerObjects[JointType.ThumbLeft].transform.position - PlayerObjects[JointType.HandLeft].transform.position;
 
-        Vector3 r_handUp = Vector3.Cross(r_handRotation, r_handVector);
-        Vector3 l_handUp = Vector3.Cross(l_handVector, l_handRotation);
+        Vector3 rHandUp = Vector3.Cross(rHandRotation, rHandVector);
+        Vector3 lHandUp = Vector3.Cross(lHandVector, lHandRotation);
 
-        if (rightHand.status == Hand.HandStatus.Close)
+        if (RightHand.status == Hand.HandStatus.Close)
         {
-            Quaternion target = Quaternion.LookRotation(r_wristVector);
-            rightHand.transform.rotation = Quaternion.Slerp(rightHand.transform.rotation, target, Time.deltaTime * 10.0f);
+            Quaternion target = Quaternion.LookRotation(rWristVector);
+            RightHand.transform.rotation = Quaternion.Slerp(RightHand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
         else
         {
-            Quaternion target = Quaternion.LookRotation(r_handVector, r_handUp);
-            rightHand.transform.rotation = Quaternion.Slerp(rightHand.transform.rotation, target, Time.deltaTime * 10.0f);
+            Quaternion target = Quaternion.LookRotation(rHandVector, rHandUp);
+            RightHand.transform.rotation = Quaternion.Slerp(RightHand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
-        if (leftHand.status == Hand.HandStatus.Close)
+        if (LeftHand.status == Hand.HandStatus.Close)
         {
-            Quaternion target = Quaternion.LookRotation(l_wristVector);
-            leftHand.transform.rotation = Quaternion.Slerp(leftHand.transform.rotation, target, Time.deltaTime * 10.0f);
+            Quaternion target = Quaternion.LookRotation(lWristVector);
+            LeftHand.transform.rotation = Quaternion.Slerp(LeftHand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
         else
         {
-            Quaternion target = Quaternion.LookRotation(l_handVector, l_handUp);
-            leftHand.transform.rotation = Quaternion.Slerp(leftHand.transform.rotation, target, Time.deltaTime * 10.0f);
+            Quaternion target = Quaternion.LookRotation(lHandVector, lHandUp);
+            LeftHand.transform.rotation = Quaternion.Slerp(LeftHand.transform.rotation, target, Time.deltaTime * 10.0f);
         }
     }
 
     public void RefreshBodyObject()
     {
-        foreach (JointType jt in kinect.essentialJoints)
+        foreach (JointType jt in Kinect.EssentialJoints)
         {
-            Windows.Kinect.Joint sourceJoint = trackedBody.Joints[jt];
+            Windows.Kinect.Joint sourceJoint = _trackedBody.Joints[jt];
             Windows.Kinect.Joint? targetJoint = null;
 
 
-            if (kinect._BoneMap.ContainsKey(jt))
+            if (Kinect.BoneMap.ContainsKey(jt))
             {
-                targetJoint = trackedBody.Joints[kinect._BoneMap[jt]];
+                targetJoint = _trackedBody.Joints[Kinect.BoneMap[jt]];
             }
 
-            Transform jointObj = bodyTransforms[jt];
+            Transform jointObj = BodyTransforms[jt];
             Vector3 pos = GetVector3FromJoint(sourceJoint);
-            bodyFilters[jt].record(pos);
+            BodyFilters[jt].record(pos);
 
         }
-        foreach (JointType jt in kinect.unessentialJoints)
+        foreach (JointType jt in Kinect.UnessentialJoints)
         {
-            Windows.Kinect.Joint sourceJoint = trackedBody.Joints[jt];
-            Windows.Kinect.Joint? targetJoint = null;
-
-
-            if (kinect._BoneMap.ContainsKey(jt))
-            {
-                targetJoint = trackedBody.Joints[kinect._BoneMap[jt]];
-            }
-
-            Transform jointObj = bodyTransforms[jt];
+            Windows.Kinect.Joint sourceJoint = _trackedBody.Joints[jt];
+            Transform jointObj = BodyTransforms[jt];
             Vector3 pos = GetVector3FromJoint(sourceJoint);
-            bodyPositions[jt] = GetVector3FromJoint(sourceJoint);
+            BodyPositions[jt] = GetVector3FromJoint(sourceJoint);
         }
 
     }
@@ -209,20 +230,12 @@ public class KinectPlayer : MonoBehaviour
 
     private Vector3 GetVector3FromJoint(Windows.Kinect.Joint joint)
     {
-        return playerPositionOffset + new Vector3(-joint.Position.X * 2, joint.Position.Y * 2, joint.Position.Z * 2);
+        return _playerPositionOffset + new Vector3(-joint.Position.X * 2, joint.Position.Y * 2, joint.Position.Z * 2);
     }
 
-    public FingerState getFingers(bool is_right_hand)
+    public FingerState GetFingers(bool isRightHand)
     {
-        if (is_right_hand)
-        {
-            return new FingerState(bodyPositions[JointType.HandTipRight], bodyPositions[JointType.ThumbRight]);
-        }
-        else
-        {
-            return new FingerState(bodyPositions[JointType.HandTipLeft], bodyPositions[JointType.ThumbLeft]);
-
-        }
+        return isRightHand ? new FingerState(BodyPositions[JointType.HandTipRight], BodyPositions[JointType.ThumbRight]) : new FingerState(BodyPositions[JointType.HandTipLeft], BodyPositions[JointType.ThumbLeft]);
     }
 }
 
