@@ -1,27 +1,38 @@
 ﻿using UnityEngine;
 using System.Collections;
 using Windows.Kinect;
-
-public class DepthSourceManager : MonoBehaviour
-{   
+/*
+    Original MS code for reading body data from Kinect
+*/
+public class BodySourceManager : MonoBehaviour 
+{
     private KinectSensor _Sensor;
-    private DepthFrameReader _Reader;
-    private ushort[] _Data;
-
-    public ushort[] GetData()
+    private BodyFrameReader _Reader;
+    private Body[] _Data = null;
+    
+    public Body[] GetData()
     {
         return _Data;
     }
+    
 
     void Start () 
     {
         _Sensor = KinectSensor.GetDefault();
-        
-        if (_Sensor != null) 
+
+        if (_Sensor != null)
         {
-            _Reader = _Sensor.DepthFrameSource.OpenReader();
-            _Data = new ushort[_Sensor.DepthFrameSource.FrameDescription.LengthInPixels];
+            _Reader = _Sensor.BodyFrameSource.OpenReader();
+
+            if (!_Sensor.IsOpen)
+            {
+                _Sensor.Open();
+            }
         }
+        else
+        {
+            Debug.Log("No sensor found");
+        }   
     }
     
     void Update () 
@@ -31,11 +42,17 @@ public class DepthSourceManager : MonoBehaviour
             var frame = _Reader.AcquireLatestFrame();
             if (frame != null)
             {
-                frame.CopyFrameDataToArray(_Data);
+                if (_Data == null)
+                {
+                    _Data = new Body[_Sensor.BodyFrameSource.BodyCount];
+                }
+                
+                frame.GetAndRefreshBodyData(_Data);
+                
                 frame.Dispose();
                 frame = null;
             }
-        }
+        }    
     }
     
     void OnApplicationQuit()
@@ -56,5 +73,4 @@ public class DepthSourceManager : MonoBehaviour
             _Sensor = null;
         }
     }
-
 }

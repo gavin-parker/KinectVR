@@ -2,17 +2,19 @@
 using System.Collections.Generic;
 using System.Collections;
 using System;
-
+/* Created by Gavin Parker 03/2017
+ * Handles interaction of hands and virtual environment
+ * 
+ */
 public abstract class Hand : MonoBehaviour
 {
 
-    public enum HandStatus { Open, Close };
+    public enum HandStatus { Open, Close, Point };
     public HandStatus status = HandStatus.Open;
     public bool holding = false;
     public float speed;
     public Windows.Kinect.TrackingConfidence trackingConfidence;
     public KinectPlayer player;
-    private bool change = false;
 
     private Vector3 lastPosition;
     public Vector3 velocity;
@@ -24,9 +26,12 @@ public abstract class Hand : MonoBehaviour
     public KinectCamera kinect_view;
 
     private HashSet<Collider> _onBounds;
-
+    private bool inGracePeriod = false;
+    private readonly Filter velocityFilter = new KalmanFilter();
     public bool right_hand;
-
+    private Renderer[] _myRenderers;
+    private Collider[] _myColliders;
+    private Collider grabCollider;
     public void init(KinectPlayer player, KinectCamera camera)
     {
         this.player = player;
@@ -42,6 +47,10 @@ public abstract class Hand : MonoBehaviour
             Debug.LogError("No kinect found");
 
         }
+
+        _myRenderers = GetComponentsInChildren<Renderer>();
+        _myColliders = GetComponentsInChildren<Collider>();
+        grabCollider = GetComponent<Collider>();
         lastPosition = transform.position;
     }
 
@@ -50,38 +59,58 @@ public abstract class Hand : MonoBehaviour
     void Update()
     {
         velocity = (transform.position - lastPosition) / Time.deltaTime;
+        velocityFilter.record(velocity);
         lastPosition = transform.position;
-
     }
 
     public void OpenHand()
     {
-        if (status == HandStatus.Close)
+        if (status != HandStatus.Open)
         {
             status = HandStatus.Open;
-            change = true;
             open();
             ReleaseObject();
         }
-
+        SetVisible(true);
     }
 
     public void CloseHand()
     {
-        if (status == HandStatus.Open)
+        if (status != HandStatus.Close)
         {
             status = HandStatus.Close;
-            change = true;
             close();
             GrabObject();
-
         }
 
     }
 
+    public void PointHand()
+    {
+        if (status != HandStatus.Point)
+        {
+            status = HandStatus.Point;
+            point();
+        }
+    }
+
+
+    public Vector3 GetVelocity()
+    {
+        return velocityFilter.predict();
+    }
 
     protected abstract void close();
     protected abstract void open();
+    protected abstract void point();
+
+    private IEnumerator gracePeriod()
+    {
+        if (inGracePeriod) yield break;
+        inGracePeriod = true;
+        yield return new WaitForSeconds(0.1f);
+        inGracePeriod = false;
+    }
 
     private Grabbable GetClosestObject()
     {
@@ -108,6 +137,16 @@ public abstract class Hand : MonoBehaviour
         return closest;
     }
 
+    public void SetVisible(bool visible)
+    {
+        if (_myRenderers == null) return;
+        foreach (Renderer rend in _myRenderers)
+        {
+            if (rend != null)
+                rend.enabled = visible;
+
+        }
+    }
 
     //checks a surrounding sphere for objects, grabs them
     private void GrabObject()
@@ -121,9 +160,20 @@ public abstract class Hand : MonoBehaviour
         }
 
         Grabbable grabTarget = GetClosestObject();
-        if (grabTarget == null) return;
+        if (grabTarget == null)
+        {
+            StartCoroutine(gracePeriod());
+            return;
+        }
         grabTarget.Grab(this);
         heldObject = grabTarget;
+        foreach (Collider col in _myColliders)
+        {
+            if (col != grabCollider)
+            {
+                col.enabled = false;
+            }
+        }
     }
 
     private void ReleaseObject()
@@ -132,9 +182,22 @@ public abstract class Hand : MonoBehaviour
         _onBounds.Clear();
         holding = false;
         heldObject.Release(this);
+        StartCoroutine(SetPhysicalColliders(true, 0.2f));
         return;
     }
 
+
+    private IEnumerator SetPhysicalColliders(bool enabled, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        foreach (Collider col in _myColliders)
+        {
+            if (col != grabCollider)
+            {
+                col.enabled = enabled;
+            }
+        }
+    }
     //function called to snap object to palm 
     private void snapToHand(GameObject placeable)
     {
@@ -154,6 +217,10 @@ public abstract class Hand : MonoBehaviour
         if (!gother.CompareTag("Hand") && !holding && _onBounds != null)
         {
             _onBounds.Add(other);
+            if (inGracePeriod)
+            {
+                GrabObject();
+            }
         }
     }
     private void OnTriggerStay(Collider other)

@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
+/* Created by Gavin Parker 05/2017
+ * Handles when to change hand state from open/close.
+ */
 public class HandFilter
 {
     private readonly List<bool> _records;

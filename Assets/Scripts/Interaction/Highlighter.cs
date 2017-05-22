@@ -3,6 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/*  Created by Gavin Parker 03/2017
+ *  Highlight a given object in green when hand is placed over it, to show the player it can be grabbed
+ * 
+ */
 public abstract class Highlighter : MonoBehaviour
 {
 

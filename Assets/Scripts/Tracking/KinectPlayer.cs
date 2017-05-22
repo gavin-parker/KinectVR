@@ -7,6 +7,10 @@ using UnityEngine.VR;
 using Windows.Kinect;
 using NUnit.Framework.Constraints;
 using System.Collections;
+using System.IO;
+/* Created by Gavin Parker 05/2017
+ * Controls movements of virtual player, based on real player from the kinect.
+ */
 
 public class KinectPlayer : MonoBehaviour
 {
@@ -16,6 +20,7 @@ public class KinectPlayer : MonoBehaviour
     public GameObject Torso;
     public KinectCamera Kinect;
     public ulong Id;
+
     public bool IsMainPlayer;
 
     [HideInInspector]
@@ -128,8 +133,6 @@ public class KinectPlayer : MonoBehaviour
     {
 
         Head.transform.position = Vector3.Slerp(Head.transform.position, PlayerObjects[JointType.Head].transform.position, Time.deltaTime * 10.0f);
-        RightHand.speed = (PlayerObjects[JointType.HandRight].transform.position - RightHand.transform.position).magnitude / Time.deltaTime;
-        LeftHand.speed = (PlayerObjects[JointType.HandLeft].transform.position - LeftHand.transform.position).magnitude / Time.deltaTime;
         RightHand.transform.position = Vector3.Slerp(RightHand.transform.position, PlayerObjects[JointType.HandRight].transform.position, Time.deltaTime * 10.0f);
         LeftHand.transform.position = Vector3.Slerp(LeftHand.transform.position, PlayerObjects[JointType.HandLeft].transform.position, Time.deltaTime * 10.0f);
 
@@ -146,56 +149,40 @@ public class KinectPlayer : MonoBehaviour
         RightHand.trackingConfidence = _trackedBody.HandRightConfidence;
         LeftHand.trackingConfidence = _trackedBody.HandLeftConfidence;
 
+        ChangeHandState(RightHand, _trackedBody.HandRightState, _rightHandFilter);
+        ChangeHandState(LeftHand, _trackedBody.HandLeftState, _leftHandFilter);
 
-        if (RightHand.trackingConfidence == TrackingConfidence.High)
-        {
-            if (_trackedBody.HandRightState == HandState.Closed)
-            {
-                RightHand.CloseHand();
-            }
-            else
-            {
-                RightHand.OpenHand();
-            }
-        }
-        else
-        {
-            if (_rightHandFilter.Predict())
-
-            {
-                RightHand.CloseHand();
-            }
-            else
-            {
-                RightHand.OpenHand();
-            }
-
-        }
-
-
-        if (LeftHand.trackingConfidence == TrackingConfidence.High)
-        {
-            if (_trackedBody.HandLeftState == HandState.Closed)
-            {
-                LeftHand.CloseHand();
-            }
-            else
-            {
-                LeftHand.OpenHand();
-            }
-        }
-        else
-        {
-            if (_leftHandFilter.Predict())
-            {
-                LeftHand.CloseHand();
-            }
-            else
-            {
-                LeftHand.OpenHand();
-            }
-        }
         AdjustHands();
+    }
+
+
+    private void ChangeHandState(Hand hand, HandState state, HandFilter filter)
+    {
+        if (hand.trackingConfidence == TrackingConfidence.High)
+        {
+            if (state == HandState.Closed)
+            {
+                hand.CloseHand();
+            }
+
+            else
+            {
+                hand.OpenHand();
+            }
+        }
+        else
+        {
+            if (state == HandState.Closed)
+            {
+                hand.CloseHand();
+            }
+
+            else
+            {
+                hand.OpenHand();
+            }
+
+        }
     }
 
     private void AdjustHands()
@@ -238,12 +225,9 @@ public class KinectPlayer : MonoBehaviour
         foreach (JointType jt in Kinect.EssentialJoints)
         {
             Windows.Kinect.Joint sourceJoint = _trackedBody.Joints[jt];
-            Windows.Kinect.Joint? targetJoint = null;
-
 
             if (Kinect.BoneMap.ContainsKey(jt))
             {
-                targetJoint = _trackedBody.Joints[Kinect.BoneMap[jt]];
             }
 
             Transform jointObj = BodyTransforms[jt];
@@ -273,5 +257,6 @@ public class KinectPlayer : MonoBehaviour
     {
         return isRightHand ? new FingerState(BodyPositions[JointType.HandTipRight], BodyPositions[JointType.ThumbRight]) : new FingerState(BodyPositions[JointType.HandTipLeft], BodyPositions[JointType.ThumbLeft]);
     }
+
 }
 

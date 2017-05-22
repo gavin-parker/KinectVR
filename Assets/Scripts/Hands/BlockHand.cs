@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
-
+/* Created by Gavin Parker 05/2017
+ * An example animated hand to handle open/close motions
+ */
 class BlockHand : Hand
 {
     public GameObject thumb;
@@ -30,20 +32,25 @@ class BlockHand : Hand
     protected override void close()
     {
         animator.SetBool("Closed", true);
+        animator.SetBool("Pointing", false);
     }
 
     protected override void open()
     {
         animator.SetBool("Closed", false);
+        animator.SetBool("Pointing", false);
 
+    }
+
+    protected override void point()
+    {
+        animator.SetBool("Closed", false);
+        animator.SetBool("Pointing", true);
     }
 
     void OnApplicationQuit()
     {
-        if (right_hand)
-        {
-            File.WriteAllText("fingerDist.csv", logger.ToString());
-        }
+
     }
 
 }

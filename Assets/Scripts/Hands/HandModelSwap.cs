@@ -16,6 +16,11 @@ class HandModelSwap : Hand
         closeModel.SetActive(false);
     }
 
+    protected override void point()
+    {
+        
+    }
+
     protected override void close()
     {
         openModel.SetActive(false);
